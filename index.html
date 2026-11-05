@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>道徳的ジレンマ選択ゲーム</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  *:focus-visible { outline: 2px solid #7c3aed; outline-offset: 2px; }
+  @keyframes fadeSlide { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
+  .fade-slide { animation: fadeSlide 0.4s ease; }
+  @keyframes pop { 0%{transform:scale(1)} 50%{transform:scale(1.05)} 100%{transform:scale(1)} }
+  .pop { animation: pop 0.3s ease; }
+  .radar-label { font-size: 11px; fill: #374151; }
+</style>
+</head>
+<body class="bg-gradient-to-br from-purple-900 via-indigo-900 to-blue-900 min-h-screen p-4">
+
+<div class="max-w-2xl mx-auto">
+  <header class="text-center py-6">
+    <h1 class="text-3xl font-bold text-white">⚖️ 道徳的ジレンマ選択ゲーム</h1>
+    <p class="text-purple-300 mt-1">あなたの倫理的傾向を診断します</p>
+  </header>
+
+  <!-- Intro -->
+  <div id="intro-panel" class="bg-white/10 backdrop-blur rounded-2xl p-6 text-white mb-4 fade-slide">
+    <p class="text-lg mb-4">15のジレンマシナリオにお答えください。選択はスコアとして集計され、最後に倫理スタイル診断を行います。</p>
+    <div class="grid grid-cols-3 gap-3 mb-6 text-center text-sm">
+      <div class="bg-blue-500/30 rounded-xl p-3"><p class="text-2xl mb-1">⚡</p><p class="font-semibold">功利主義</p><p class="text-xs text-blue-200">最大多数の最大幸福</p></div>
+      <div class="bg-green-500/30 rounded-xl p-3"><p class="text-2xl mb-1">📜</p><p class="font-semibold">義務論</p><p class="text-xs text-green-200">規則と義務を守る</p></div>
+      <div class="bg-amber-500/30 rounded-xl p-3"><p class="text-2xl mb-1">🌱</p><p class="font-semibold">徳倫理</p><p class="text-xs text-amber-200">徳のある人格を目指す</p></div>
+    </div>
+    <button onclick="startGame()" class="w-full bg-purple-500 hover:bg-purple-400 text-white font-bold py-3 rounded-xl transition text-lg">🎮 ゲーム開始</button>
+  </div>
+
+  <!-- Dilemma Panel -->
+  <div id="dilemma-panel" class="hidden">
+    <div class="flex justify-between items-center mb-3 text-white/60 text-sm">
+      <span id="q-num">問題 1 / 15</span>
+      <div class="flex gap-2 text-xs">
+        <span class="bg-blue-500/30 px-2 py-0.5 rounded">功: <span id="score-u">0</span></span>
+        <span class="bg-green-500/30 px-2 py-0.5 rounded">義: <span id="score-d">0</span></span>
+        <span class="bg-amber-500/30 px-2 py-0.5 rounded">徳: <span id="score-v">0</span></span>
+      </div>
+    </div>
+
+    <div id="scenario-card" class="bg-white/10 backdrop-blur rounded-2xl p-6 text-white mb-4 fade-slide">
+      <p id="scenario-title" class="text-xs font-bold text-purple-300 mb-2 uppercase tracking-widest"></p>
+      <p id="scenario-text" class="text-base leading-relaxed mb-6"></p>
+      <div class="flex flex-col gap-3">
+        <button onclick="choose(0)" id="choice-a" class="text-left bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl p-4 transition font-semibold text-sm"></button>
+        <button onclick="choose(1)" id="choice-b" class="text-left bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl p-4 transition font-semibold text-sm"></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Result Panel -->
+  <div id="result-panel" class="hidden text-white fade-slide">
+    <div class="bg-white/10 backdrop-blur rounded-2xl p-6 mb-4">
+      <h2 class="text-2xl font-bold text-center mb-2">🧬 倫理スタイル診断</h2>
+      <p id="style-name" class="text-center text-3xl font-bold text-yellow-300 mb-1"></p>
+      <p id="style-desc" class="text-center text-purple-200 text-sm mb-4"></p>
+
+      <!-- Radar Chart -->
+      <div class="flex justify-center mb-4">
+        <svg id="radar" width="260" height="240" viewBox="0 0 260 240" aria-label="倫理スタイルレーダーチャート"></svg>
+      </div>
+
+      <div class="grid grid-cols-3 gap-3 text-center text-sm mb-4">
+        <div class="bg-blue-500/20 rounded-xl p-3">
+          <p class="text-xs text-blue-300">功利主義</p>
+          <p id="res-u" class="text-2xl font-bold text-blue-300"></p>
+          <p class="text-xs text-blue-400">pts</p>
+        </div>
+        <div class="bg-green-500/20 rounded-xl p-3">
+          <p class="text-xs text-green-300">義務論</p>
+          <p id="res-d" class="text-2xl font-bold text-green-300"></p>
+          <p class="text-xs text-green-400">pts</p>
+        </div>
+        <div class="bg-amber-500/20 rounded-xl p-3">
+          <p class="text-xs text-amber-300">徳倫理</p>
+          <p id="res-v" class="text-2xl font-bold text-amber-300"></p>
+          <p class="text-xs text-amber-400">pts</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Share -->
+    <div class="bg-white/10 rounded-2xl p-4 mb-4">
+      <p class="text-sm font-semibold mb-2">🔗 友人と比較する</p>
+      <input id="share-url" readonly class="w-full bg-white/10 rounded-lg p-2 text-xs text-purple-200 border border-white/20" aria-label="共有URL">
+      <button onclick="copyUrl()" class="mt-2 text-xs text-purple-300 hover:text-white underline">URLをコピー</button>
+    </div>
+
+    <!-- Past Results -->
+    <div id="past-panel" class="bg-white/10 rounded-2xl p-4 mb-4 hidden">
+      <p class="text-sm font-semibold mb-2">📊 過去の診断</p>
+      <div id="past-list" class="text-xs text-purple-200"></div>
+    </div>
+
+    <div class="flex gap-3">
+      <button onclick="restartGame()" class="flex-1 bg-purple-500 hover:bg-purple-400 text-white font-bold py-3 rounded-xl transition">🔄 もう一度</button>
+      <button onclick="clearHistory()" class="text-xs text-purple-400 hover:text-white px-4 py-3 rounded-xl border border-white/20 transition">履歴削除</button>
+    </div>
+  </div>
+</div>
+
+<script>
+function htmlEscape(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+const DILEMMAS = [
+  {
+    title:'トロッコ問題 ①',
+    text:'暴走するトロッコが5人を轢こうとしています。あなたはレバーを引けば1人を犠牲にして5人を救えます。どうしますか？',
+    choices:['レバーを引いて1人を犠牲にし5人を救う','何もしない（5人が犠牲）'],
+    scores:[[3,0,1],[0,2,2]]
+  },
+  {
+    title:'トロッコ問題 ② 歩道橋',
+    text:'歩道橋の上から見ると、トロッコが5人に向かっています。隣の太った人を橋から突き落とせばトロッコが止まり5人が救われますが、その人は死にます。',
+    choices:['突き落として5人を救う','突き落とさない'],
+    scores:[[3,0,0],[0,3,2]]
+  },
+  {
+    title:'ハインツのジレンマ',
+    text:'妻が重篤な病気です。薬があれば救えますが、薬剤師が法外な値段を要求します。お金がないハインツは薬を盗むことを考えています。',
+    choices:['薬を盗む（妻を救う）','盗まない（法律を守る）'],
+    scores:[[2,0,3],[0,3,1]]
+  },
+  {
+    title:'臓器移植のジレンマ',
+    text:'医師が1人の健康な患者を犠牲にして、臓器を5人の重篤患者に移植すれば5人が救われます。医師はどうすべきでしょうか？',
+    choices:['1人を犠牲にして5人を救う','1人を犠牲にしない'],
+    scores:[[2,0,0],[0,3,3]]
+  },
+  {
+    title:'自動運転カーのジレンマ',
+    text:'自動運転中にブレーキが故障。直進すれば5人の歩行者が死亡、急ハンドルなら乗客1人が崖に落ちて死亡します。AIはどうプログラムすべきですか？',
+    choices:['乗客を犠牲にして5人を守るようプログラム','5人よりも乗客を優先するようプログラム'],
+    scores:[[3,0,1],[1,2,1]]
+  },
+  {
+    title:'医療トリアージ',
+    text:'大規模災害で医薬品が不足しています。重傷者20人を救うか、軽症者100人を治療するか選択を迫られています（両方はできません）。',
+    choices:['重傷者20人を優先して治療','軽症者100人を優先して治療'],
+    scores:[[2,1,2],[3,0,1]]
+  },
+  {
+    title:'情報漏洩のジレンマ',
+    text:'あなたは会社の重大な不正を知りました。告発すれば会社は倒産し1000人が職を失いますが、社会正義は実現されます。',
+    choices:['告発する','告発しない（1000人の雇用を守る）'],
+    scores:[[1,2,3],[2,1,1]]
+  },
+  {
+    title:'AIと人間',
+    text:'あなたの会社のAIが誤動作して重要な医療決定を下そうとしています。止めれば患者が死ぬ可能性があります。AIは止めるべきでしょうか？',
+    choices:['AIを止める（人間が責任を負う）','AIの判断に任せる'],
+    scores:[[1,2,2],[2,1,0]]
+  },
+  {
+    title:'生命維持装置',
+    text:'末期癌の患者が「苦しまずに死にたい」と生命維持装置の停止を希望しています。家族は反対しています。医師はどうすべきでしょうか？',
+    choices:['患者の意志を尊重して装置を止める','家族の希望を優先して装置を継続'],
+    scores:[[1,1,3],[1,2,1]]
+  },
+  {
+    title:'気候変動と経済',
+    text:'厳格な環境規制を導入すれば地球温暖化は防げますが、現在の貧困層1億人がさらに苦しくなります。規制を導入すべきでしょうか？',
+    choices:['規制を導入する（未来世代を守る）','規制を導入しない（現在の貧困層を守る）'],
+    scores:[[2,1,2],[2,2,1]]
+  },
+  {
+    title:'友人の秘密',
+    text:'親友が重大な犯罪を犯したと告白してきました。「秘密にしてほしい」と言います。被害者もいます。あなたはどうしますか？',
+    choices:['警察に報告する','友人との約束を守って秘密にする'],
+    scores:[[1,3,1],[1,0,3]]
+  },
+  {
+    title:'匿名告発',
+    text:'同僚が不正をしているのを知っています。告発すれば自分も被害を受けます。また証拠は状況証拠のみです。',
+    choices:['証拠が不十分でも告発する','証拠が揃うまで待つ'],
+    scores:[[1,2,2],[2,1,2]]
+  },
+  {
+    title:'難民受け入れ',
+    text:'紛争地帯から1万人の難民が来ています。受け入れれば国内経済や治安に影響が出る可能性があります。',
+    choices:['人道主義に基づき受け入れる','国民を守るために受け入れを制限する'],
+    scores:[[1,2,3],[2,2,1]]
+  },
+  {
+    title:'不死の薬',
+    text:'不死を与える薬が開発されました。しかし全員に行き届く量はなく、富裕層だけが購入できます。この薬の販売を許可すべきでしょうか？',
+    choices:['販売を禁止する（平等を守る）','販売を許可する（個人の自由）'],
+    scores:[[1,2,2],[2,0,1]]
+  },
+  {
+    title:'正義の嘘',
+    text:'ナチス占領下で、あなたはユダヤ人を匿っています。兵士が「ユダヤ人はいるか？」と聞いてきました。',
+    choices:['嘘をついて隠れた人を守る','嘘をつかない（正直に答える）'],
+    scores:[[2,0,3],[0,3,1]]
+  },
+];
+
+let currentQ = 0;
+let scores = { u: 0, d: 0, v: 0 };
+let answers = [];
+
+function startGame() {
+  // Check URL params for friend comparison
+  const params = new URLSearchParams(location.search);
+  if (params.get('friend')) {
+    const f = JSON.parse(atob(params.get('friend')));
+    alert(`友人の結果: 功利主義 ${f.u}pt / 義務論 ${f.d}pt / 徳倫理 ${f.v}pt`);
+  }
+  document.getElementById('intro-panel').classList.add('hidden');
+  document.getElementById('dilemma-panel').classList.remove('hidden');
+  currentQ = 0;
+  scores = { u: 0, d: 0, v: 0 };
+  answers = [];
+  showDilemma();
+}
+
+function showDilemma() {
+  const d = DILEMMAS[currentQ];
+  document.getElementById('q-num').textContent = `問題 ${currentQ + 1} / ${DILEMMAS.length}`;
+  document.getElementById('score-u').textContent = scores.u;
+  document.getElementById('score-d').textContent = scores.d;
+  document.getElementById('score-v').textContent = scores.v;
+  document.getElementById('scenario-title').textContent = d.title;
+  document.getElementById('scenario-text').textContent = d.text;
+  document.getElementById('choice-a').textContent = 'A: ' + d.choices[0];
+  document.getElementById('choice-b').textContent = 'B: ' + d.choices[1];
+  document.getElementById('scenario-card').classList.remove('fade-slide');
+  void document.getElementById('scenario-card').offsetWidth;
+  document.getElementById('scenario-card').classList.add('fade-slide');
+}
+
+function choose(idx) {
+  const d = DILEMMAS[currentQ];
+  scores.u += d.scores[idx][0];
+  scores.d += d.scores[idx][1];
+  scores.v += d.scores[idx][2];
+  answers.push(idx);
+  currentQ++;
+  if (currentQ >= DILEMMAS.length) {
+    showResult();
+  } else {
+    showDilemma();
+  }
+}
+
+function showResult() {
+  document.getElementById('dilemma-panel').classList.add('hidden');
+  document.getElementById('result-panel').classList.remove('hidden');
+
+  document.getElementById('res-u').textContent = scores.u;
+  document.getElementById('res-d').textContent = scores.d;
+  document.getElementById('res-v').textContent = scores.v;
+
+  const max = Math.max(scores.u, scores.d, scores.v);
+  let styleName, styleDesc;
+  if (max === scores.u && scores.u > scores.d && scores.u > scores.v) {
+    styleName = '⚡ 功利主義タイプ'; styleDesc = '結果重視。最大多数の幸福を追求し、感情より数字で判断します。';
+  } else if (max === scores.d && scores.d > scores.u && scores.d > scores.v) {
+    styleName = '📜 義務論タイプ'; styleDesc = 'ルール遵守重視。結果より過程と義務を大切にします。';
+  } else if (max === scores.v && scores.v > scores.u && scores.v > scores.d) {
+    styleName = '🌱 徳倫理タイプ'; styleDesc = '人格・関係性重視。徳のある人としての振る舞いを優先します。';
+  } else {
+    styleName = '⚖️ バランス型'; styleDesc = '三つの倫理観をバランスよく持ち、状況に応じて使い分けます。';
+  }
+  document.getElementById('style-name').textContent = styleName;
+  document.getElementById('style-desc').textContent = styleDesc;
+
+  drawRadar(scores.u, scores.d, scores.v);
+
+  const shareData = btoa(JSON.stringify(scores));
+  const url = location.origin + location.pathname + '?friend=' + shareData;
+  document.getElementById('share-url').value = url;
+
+  // Save to history
+  const history = JSON.parse(localStorage.getItem('dilemma-history') || '[]');
+  history.unshift({ date: new Date().toLocaleString('ja-JP'), u: scores.u, d: scores.d, v: scores.v, style: styleName });
+  if (history.length > 5) history.pop();
+  localStorage.setItem('dilemma-history', JSON.stringify(history));
+  loadHistory();
+}
+
+function drawRadar(u, d, v) {
+  const svg = document.getElementById('radar');
+  const cx = 130, cy = 120, r = 90;
+  const max = 45;
+  const angles = [-90, 30, 150]; // top, bottom-right, bottom-left
+  const vals = [u, d, v];
+  const labels = ['功利主義', '義務論', '徳倫理'];
+  const colors = ['#60a5fa','#34d399','#fbbf24'];
+
+  // Grid
+  let gridHTML = '';
+  [0.25, 0.5, 0.75, 1].forEach(t => {
+    const pts = angles.map(a => {
+      const rad = a * Math.PI / 180;
+      return `${cx + r * t * Math.cos(rad)},${cy + r * t * Math.sin(rad)}`;
+    }).join(' ');
+    gridHTML += `<polygon points="${pts}" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>`;
+  });
+
+  // Axes
+  angles.forEach((a, i) => {
+    const rad = a * Math.PI / 180;
+    gridHTML += `<line x1="${cx}" y1="${cy}" x2="${cx + r * Math.cos(rad)}" y2="${cy + r * Math.sin(rad)}" stroke="rgba(255,255,255,0.2)" stroke-width="1"/>`;
+  });
+
+  // Data polygon
+  const dataPoints = vals.map((val, i) => {
+    const a = angles[i] * Math.PI / 180;
+    const t = Math.min(val / max, 1);
+    return `${cx + r * t * Math.cos(a)},${cy + r * t * Math.sin(a)}`;
+  }).join(' ');
+  gridHTML += `<polygon points="${dataPoints}" fill="rgba(167,139,250,0.4)" stroke="#a78bfa" stroke-width="2"/>`;
+
+  // Labels
+  angles.forEach((a, i) => {
+    const rad = a * Math.PI / 180;
+    const lx = cx + (r + 20) * Math.cos(rad);
+    const ly = cy + (r + 20) * Math.sin(rad);
+    gridHTML += `<text x="${lx}" y="${ly}" text-anchor="middle" dominant-baseline="middle" class="radar-label" fill="${colors[i]}" font-weight="bold" font-size="12">${labels[i]}</text>`;
+  });
+
+  svg.innerHTML = gridHTML;
+}
+
+function copyUrl() {
+  navigator.clipboard.writeText(document.getElementById('share-url').value).then(() => alert('URLをコピーしました！'));
+}
+
+function loadHistory() {
+  const history = JSON.parse(localStorage.getItem('dilemma-history') || '[]');
+  if (history.length === 0) return;
+  const panel = document.getElementById('past-panel');
+  panel.classList.remove('hidden');
+  document.getElementById('past-list').innerHTML = history.map(h =>
+    `<div class="mb-1">${htmlEscape(h.date)}: ${htmlEscape(h.style)} (功${h.u}/義${h.d}/徳${h.v})</div>`
+  ).join('');
+}
+
+function clearHistory() {
+  if (confirm('履歴を削除しますか？')) { localStorage.removeItem('dilemma-history'); document.getElementById('past-panel').classList.add('hidden'); }
+}
+
+function restartGame() {
+  document.getElementById('result-panel').classList.add('hidden');
+  document.getElementById('intro-panel').classList.remove('hidden');
+}
+</script>
+</body>
+</html>
